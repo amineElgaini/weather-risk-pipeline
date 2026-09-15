@@ -4,35 +4,59 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data" / "silver" / "weather_silver.csv"
 
-WEATHER_DAILY_RISK_PATH = BASE_DIR / "data" / "bronze" / "weather_daily_risk.csv"
-WEATHER_DAILY_SUMMARY_PATH = BASE_DIR / "data" / "bronze" / "weather_city_summary.csv"
+WEATHER_DAILY_RISK_PATH = BASE_DIR / "data" / "gold" / "weather_daily_risk.csv"
+WEATHER_DAILY_SUMMARY_PATH = BASE_DIR / "data" / "gold" / "weather_city_summary.csv"
 
 WEATHER_DAILY_RISK_PATH.parent.mkdir(parents=True, exist_ok=True)
 WEATHER_DAILY_SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 df = pd.read_csv(DATA_PATH)
-weather_daily_risk = []
-weather_daily_summary = []
 
-def categorize_risk(row):
-    if (
-        row["precipitation_sum"] > 10
-        or row["wind_gusts_max"] > 50
-        or row["weather_code"] >= 85
-    ):
-        return "HIGH"
+# def compute_risk_score(row):
+#     precip_score = min(35, (row["precipitation_sum"] / 20.0) * 35)
 
-    if (
-        row["precipitation_sum"] > 5
-        or row["wind_gusts_max"] > 35
-        or row["precip_prob_max"] > 70
-    ):
-        return "MEDIUM"
+#     wind_score = min(35, (row["wind_gusts_max"] / 70.0) * 35)
 
-    return "LOW"
+#     temp_score = 0
+#     if row["temp_max"] >= 40 or row["temp_min"] <= 2:
+#         temp_score = 15
+#     elif row["temp_max"] >= 35 or row["temp_min"] <= 5:
+#         temp_score = 8
+
+#     code_score = 15 if row["weather_code"] >= 80 else 0
+
+#     total_score = round(precip_score + wind_score + temp_score + code_score, 1)
+#     return min(100.0, total_score)
 
 
-df["risk_level"] = df.apply(categorize_risk, axis=1)
+def compute_risk_score(row):
+    # 1. Precipitation Score (capped at 35)
+    precip_score = min(35.0, (row["precipitation_sum"] / 20.0) * 35.0)
+
+    # 2. Wind Score (capped at 35)
+    wind_score = min(35.0, (row["wind_gusts_max"] / 70.0) * 35.0)
+
+    # 3. Dynamic Temperature Score (Scales continuously up to a cap)
+    heat_score = max(0.0, (row["temp_max"] - 30.0) / (50.0 - 30.0) * 20.0)
+    cold_score = max(0.0, (5.0 - row["temp_min"]) / (5.0 - (-5.0)) * 20.0)
+
+    # Take the worse extreme (heat or cold) or cap their combined effect
+    temp_score = min(30.0, heat_score + cold_score)
+
+    # 4. Weather Code Hazard Score
+    code_score = 15.0 if row["weather_code"] >= 80 else 0.0
+
+    # 5. Total Score (capped at 100.0)
+    total_score = round(precip_score + wind_score + temp_score + code_score, 1)
+    return min(100.0, total_score)
+
+df["risk_score"] = df.apply(compute_risk_score, axis=1)
+df["risk_level"] = pd.cut(
+    df["risk_score"],
+    bins=[-1, 30, 60, 100],
+    labels=["LOW", "MEDIUM", "HIGH"],
+)
+
 df["temp_range"] = (df["temp_max"] - df["temp_min"]).round(1)
 df["is_high_wind"] = (df["wind_speed_max"] > 30).astype(int)
 
@@ -43,6 +67,5 @@ city_summary = df.groupby("city").agg(
     high_risk_days=("risk_level", lambda x: (x == "HIGH").sum())
 ).reset_index()
 
-df.to_csv(GOLD_DIR / "weather_daily_risk.csv", index=False)
-
-city_summary.to_csv(GOLD_DIR / "weather_city_summary.csv", index=False)
+df.to_csv(WEATHER_DAILY_RISK_PATH, index=False)
+city_summary.to_csv(WEATHER_DAILY_SUMMARY_PATH, index=False)

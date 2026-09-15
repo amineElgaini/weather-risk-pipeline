@@ -8,7 +8,7 @@ import pandas as pd
 start = time.perf_counter()
 
 file_path = Path(__file__).parent / "ma.csv"
-output_path = Path(__file__).parent / "weather_bronze.json"
+output_path = Path(__file__).resolve().parent.parent / "data" / "weather_raw2.json"
 
 data = pd.read_csv(
     file_path,
