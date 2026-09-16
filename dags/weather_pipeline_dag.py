@@ -2,17 +2,17 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 # Add project root directory to Python path to import custom modules
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
 # Import your modular scripts directly
 from extraction.fetch_bronze import extract_bronze_data
 from transformation.clean_silver import process_silver_data
 from transformation.build_gold import generate_gold_metrics
-from load.load_postgres import run_postgres_loader
+from load.load_postgres import load_to_postgres
 
 default_args = {
     "owner": "data_engineer",
@@ -25,7 +25,7 @@ with DAG(
     dag_id="morocco_weather_logistics_pipeline",
     default_args=default_args,
     description="Orchestrates Bronze -> Silver -> Gold ETL pipeline and loads to PostgreSQL",
-    schedule_interval="0 6 * * *",  # Daily at 6:00 AM
+    schedule="0 6 * * *",  # Daily at 6:00 AM
     start_date=datetime(2026, 9, 1),
     catchup=False,
     tags=["logistics", "weather", "morocco"],
@@ -48,7 +48,7 @@ with DAG(
 
     t4_load_db = PythonOperator(
         task_id="load_postgres",
-        python_callable=run_postgres_loader,
+        python_callable=load_to_postgres,
     )
 
     # Clean task dependency flow
