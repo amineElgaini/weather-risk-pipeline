@@ -5,7 +5,7 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 
 # Add project root directory to Python path to import custom modules
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
 # Import your modular scripts directly
