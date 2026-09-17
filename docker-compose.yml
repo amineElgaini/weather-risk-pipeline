@@ -52,6 +52,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: root
       POSTGRES_DB: weather_db
+    volumes:
+      - ./dashboard:/app/dashboard
     ports:
       - "8501:8501"
 

@@ -68,6 +68,10 @@ except Exception as e:
     st.error(f"⚠️ Failed to connect to PostgreSQL. Make sure it's running.\nError: {e}")
     st.stop()
 
+if df.empty:
+    st.warning("No data available yet.")
+    st.stop()
+
 # -----------------------------------------------------------------------------
 # 2. SIDEBAR FILTERS — ville, date, période, niveau de risque
 # -----------------------------------------------------------------------------
